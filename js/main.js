@@ -13,8 +13,8 @@ const Screens = {
 // Estado da tela de seleção (navegável por teclado).
 const SelectUI = { mode: 'classic', focus: 0 };
 const MODES = [
-  { id: 'classic', name: 'Clássico', desc: '3 vidas · erro tira vida · acaba ao zerar', key: 'C' },
-  { id: 'free', name: 'Treino livre', desc: 'erre à vontade · acaba após 5s sem digitar', key: 'T' },
+  { id: 'classic', name: 'Clássico', desc: '3 chances · ser pego pela horda tira 1', key: 'C' },
+  { id: 'free', name: 'Treino livre', desc: 'sem vidas · a horda te pegou = fim', key: 'T' },
 ];
 
 // Último jogo iniciado (para "jogar de novo").
@@ -115,7 +115,7 @@ function showGameOver(state, isNewPr) {
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
 
   document.getElementById('over-title').textContent =
-    state.mode === 'free' ? 'Tempo esgotado!' : 'Fim de jogo';
+    state.mode === 'free' ? 'A horda te pegou!' : 'A horda te dominou!';
   document.getElementById('over-hits').textContent = state.hits;
   document.getElementById('over-misses').textContent = state.misses;
   document.getElementById('over-acc').textContent = accuracy(state) + '%';

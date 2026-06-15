@@ -1,8 +1,8 @@
 # Type Runner
 
 Jogo de navegador para treinar digitação **rápida e com o dedo correto** em teclados
-ergonômicos *split*. Tema de **corrida infinita** (estilo Chrome Dino / Canabalt): um
-corredor (robô esportivo original) acelera conforme você digita.
+ergonômicos *split*. Você é um corredor **fugindo de uma horda de zumbis**: digitar rápido
+e certo abre distância; ir devagar ou errar muito faz a horda **colar** em você.
 
 Roda **100% no navegador**, sem build e sem dependências — basta abrir `index.html`.
 
@@ -11,11 +11,10 @@ Roda **100% no navegador**, sem build e sem dependências — basta abrir `index
 - **Seleção de teclado**: Sofle, Corne e Lily58, cada um com nome e diagrama (SVG) do modelo.
 - **Treino de teclas soltas**: o jogo mostra qual tecla apertar **e com qual dedo**
   (nome do dedo + cor + destaque da mão/dedo na tela e da tecla no diagrama).
-- **Cena de corrida**: cada tecla certa faz o corredor avançar; em marcos ele **pula**
-  obstáculos ou solta um **dash** (especial); parar de digitar deixa ele em **idle**;
-  errar faz ele **tropeçar**.
-- **Dois modos**: *Clássico* (3 vidas; erro tira vida) e *Treino livre* (erre à vontade;
-  termina após 5s sem digitar).
+- **Fuga da horda**: uma "distância" cai com o tempo (zumbis se aproximam) e sobe a cada
+  acerto; errar dá um tranco e faz o corredor **tropeçar**. Distância no fim = você é pego.
+- **Dois modos**: *Clássico* (3 chances — ser pego tira uma) e *Treino livre* (sem vidas —
+  ser pego encerra; erre à vontade no caminho).
 - **Navegação por teclado** em todas as telas (1/2/3, setas, Enter, Esc, C/T).
 - **HUD**: acertos, WPM, recorde pessoal (por teclado) e vidas. No fim de jogo: precisão,
   teclas mais erradas (com o dedo correto), dicas e **gráfico de evolução do WPM**.

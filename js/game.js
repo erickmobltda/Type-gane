@@ -1,6 +1,14 @@
-// game.js — loop principal: sorteia teclas, ouve o teclado, pontua, controla vidas/WPM.
+// game.js — loop principal: sorteia teclas, pontua, e gerencia a perseguição da horda.
 
-const FREE_IDLE_MS = 5000; // modo livre: termina após este tempo sem digitar
+// Perseguição: a "distância" (0–100) cai com o tempo (zumbis se aproximam) e
+// sobe a cada acerto. Errar dá um tranco. Distância 0 = alcançado.
+const DIST_START = 64;
+const DIST_MAX = 100;
+const DIST_GAIN = 3.4;     // ganho por acerto
+const DIST_MISS = 6;       // perda por erro
+const DIST_DRAIN = 11;     // queda por segundo (≈ equilíbrio em ~39 WPM)
+const CATCH_RECOVER = 48;  // recuo da horda após ser pego (Clássico)
+const CHASE_MS = 80;       // passo do loop da perseguição
 
 const Game = {
   state: null,
@@ -9,8 +17,9 @@ const Game = {
   target: null,
   keyHandler: null,
   wpmTimer: null,
-  idleInterval: null, // contagem regressiva de inatividade (modo livre)
-  idleDeadline: 0,
+  chaseTimer: null,
+  chaseLast: 0,
+  distance: DIST_START,
   el: {}, // cache de elementos
 };
 
@@ -31,8 +40,7 @@ function gameCacheEls() {
     stage: document.getElementById('stage'),
     feedback: document.getElementById('feedback'),
     livesWrap: document.getElementById('hud-lives-wrap'),
-    idleWrap: document.getElementById('hud-idle-wrap'),
-    idle: document.getElementById('hud-idle'),
+    distFill: document.getElementById('hud-dist-fill'),
     modeName: document.getElementById('game-mode-name'),
   };
 }
@@ -44,13 +52,14 @@ function startGame(layoutId, mode) {
   Game.pool = letterPool(Game.layout);
   Game.state = createState(layoutId, mode);
   Game.target = null;
+  Game.distance = DIST_START;
 
   Game.el.layoutName.textContent = Game.layout.name;
   Game.el.modeName.textContent = MODE_LABELS[Game.state.mode];
-  Game.el.idle.textContent = (FREE_IDLE_MS / 1000).toFixed(1) + 's';
-  stageInit(Game.el.stage); // monta a cena side-scroller
+  stageInit(Game.el.stage); // monta a cena da fuga
 
   renderHud();
+  renderChase();
   nextTarget();
 
   // Listener de teclado
@@ -66,6 +75,8 @@ function startGame(layoutId, mode) {
       Game.el.wpm.textContent = Math.round(Game.state.wpm);
     }
   }, 400);
+
+  startChase();
 }
 
 function stopGame() {
@@ -73,7 +84,7 @@ function stopGame() {
   Game.keyHandler = null;
   if (Game.wpmTimer) clearInterval(Game.wpmTimer);
   Game.wpmTimer = null;
-  clearIdle();
+  stopChase();
 }
 
 // Sai do jogo e volta à seleção (tecla Esc).
@@ -83,20 +94,60 @@ function quitGame() {
   Screens.show('select');
 }
 
-// ---- contagem de inatividade (modo livre) ----
-function armIdle() {
-  clearIdle();
-  Game.idleDeadline = performance.now() + FREE_IDLE_MS;
-  Game.idleInterval = setInterval(() => {
-    const remain = Math.max(0, Game.idleDeadline - performance.now());
-    Game.el.idle.textContent = (remain / 1000).toFixed(1) + 's';
-    if (remain <= 0) { clearIdle(); endGame(); }
-  }, 100);
+// ---- perseguição da horda ----
+function startChase() {
+  stopChase();
+  Game.chaseLast = performance.now();
+  Game.chaseTimer = setInterval(chaseTick, CHASE_MS);
 }
 
-function clearIdle() {
-  if (Game.idleInterval) clearInterval(Game.idleInterval);
-  Game.idleInterval = null;
+function stopChase() {
+  if (Game.chaseTimer) clearInterval(Game.chaseTimer);
+  Game.chaseTimer = null;
+}
+
+function chaseTick() {
+  const s = Game.state;
+  if (!s || s.finished) return;
+  const now = performance.now();
+  const dt = (now - Game.chaseLast) / 1000;
+  Game.chaseLast = now;
+
+  Game.distance = Math.max(0, Game.distance - DIST_DRAIN * dt);
+  renderChase();
+  if (Game.distance <= 0) handleCaught();
+}
+
+// Atualiza a barra da horda + a posição/tensão da cena.
+function renderChase() {
+  const d = Game.distance; // 0..100
+  if (Game.el.distFill) {
+    Game.el.distFill.style.width = d + '%';
+    Game.el.distFill.style.background = d > 50 ? 'var(--green-bright)' : d > 25 ? '#f0c750' : '#e7402e';
+  }
+  if (typeof stageSetChase === 'function') stageSetChase(d / 100);
+}
+
+// A horda alcançou o jogador.
+function handleCaught() {
+  const s = Game.state;
+  if (!s || s.finished) return;
+
+  if (s.mode === 'free') {
+    endGame();
+    return;
+  }
+  // Clássico: perde uma vida; se ainda restar, a horda recua.
+  s.lives -= 1;
+  flash('miss');
+  if (typeof stageGrab === 'function') stageGrab();
+  renderHud();
+  if (s.lives <= 0) {
+    endGame();
+    return;
+  }
+  Game.distance = CATCH_RECOVER;
+  renderChase();
 }
 
 // Escolhe a próxima tecla alvo (evita repetir a anterior).
@@ -147,12 +198,14 @@ function handleHit() {
   recomputeWpm(s);
   maybeUpdatePR(s);
 
+  // Abre distância da horda.
+  Game.distance = Math.min(DIST_MAX, Game.distance + DIST_GAIN);
+
   flash('hit');
   stageStep(chooseAction(s));
   renderHud();
+  renderChase();
   nextTarget();
-
-  if (s.mode === 'free') armIdle();
 }
 
 // Decide a ação da cena a cada acerto (prioridade: dash > pulo > corrida).
@@ -168,18 +221,14 @@ function handleMiss() {
   s.combo = 0;
   recordMiss(s, Game.target.char);
 
+  // Erro tropeça e a horda avança um tranco (não tira vida direto).
+  Game.distance = Math.max(0, Game.distance - DIST_MISS);
+
   flash('miss');
   stageHurt();
-
-  if (s.mode === 'free') {
-    // Modo livre: pode errar à vontade (sem perder vida).
-    renderHud();
-    armIdle();
-  } else {
-    s.lives -= 1;
-    renderHud();
-    if (s.lives <= 0) endGame();
-  }
+  renderHud();
+  renderChase();
+  if (Game.distance <= 0) handleCaught();
 }
 
 function endGame() {
@@ -197,12 +246,10 @@ function renderHud() {
   Game.el.wpm.textContent = Math.round(s.wpm);
   Game.el.pr.textContent = s.pr;
 
-  // Clássico mostra vidas (corações); livre mostra a contagem de inatividade.
+  // Vidas (corações) só no Clássico — são as "chances" de ser pego.
   if (s.mode === 'free') {
     Game.el.livesWrap.classList.add('hidden');
-    Game.el.idleWrap.classList.remove('hidden');
   } else {
-    Game.el.idleWrap.classList.add('hidden');
     Game.el.livesWrap.classList.remove('hidden');
     Game.el.lives.innerHTML = renderHearts(s.lives);
   }
