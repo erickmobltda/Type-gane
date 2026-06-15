@@ -1,5 +1,7 @@
 // game.js — loop principal: sorteia teclas, ouve o teclado, pontua, controla vidas/WPM.
 
+const FREE_IDLE_MS = 5000; // modo livre: termina após este tempo sem digitar
+
 const Game = {
   state: null,
   layout: null,
@@ -7,8 +9,12 @@ const Game = {
   target: null,
   keyHandler: null,
   wpmTimer: null,
+  idleInterval: null, // contagem regressiva de inatividade (modo livre)
+  idleDeadline: 0,
   el: {}, // cache de elementos
 };
+
+const MODE_LABELS = { classic: 'Clássico', free: 'Treino livre' };
 
 function gameCacheEls() {
   Game.el = {
@@ -24,18 +30,24 @@ function gameCacheEls() {
     hands: document.getElementById('hands-area'),
     stage: document.getElementById('stage'),
     feedback: document.getElementById('feedback'),
+    livesWrap: document.getElementById('hud-lives-wrap'),
+    idleWrap: document.getElementById('hud-idle-wrap'),
+    idle: document.getElementById('hud-idle'),
+    modeName: document.getElementById('game-mode-name'),
   };
 }
 
-function startGame(layoutId) {
+function startGame(layoutId, mode) {
   if (!Game.el.hits) gameCacheEls();
 
   Game.layout = buildLayout(layoutId);
   Game.pool = letterPool(Game.layout);
-  Game.state = createState(layoutId);
+  Game.state = createState(layoutId, mode);
   Game.target = null;
 
   Game.el.layoutName.textContent = Game.layout.name;
+  Game.el.modeName.textContent = MODE_LABELS[Game.state.mode];
+  Game.el.idle.textContent = (FREE_IDLE_MS / 1000).toFixed(1) + 's';
   stageInit(Game.el.stage); // monta a cena side-scroller
 
   renderHud();
@@ -61,6 +73,30 @@ function stopGame() {
   Game.keyHandler = null;
   if (Game.wpmTimer) clearInterval(Game.wpmTimer);
   Game.wpmTimer = null;
+  clearIdle();
+}
+
+// Sai do jogo e volta à seleção (tecla Esc).
+function quitGame() {
+  stopGame();
+  if (typeof initSelectScreen === 'function') initSelectScreen();
+  Screens.show('select');
+}
+
+// ---- contagem de inatividade (modo livre) ----
+function armIdle() {
+  clearIdle();
+  Game.idleDeadline = performance.now() + FREE_IDLE_MS;
+  Game.idleInterval = setInterval(() => {
+    const remain = Math.max(0, Game.idleDeadline - performance.now());
+    Game.el.idle.textContent = (remain / 1000).toFixed(1) + 's';
+    if (remain <= 0) { clearIdle(); endGame(); }
+  }, 100);
+}
+
+function clearIdle() {
+  if (Game.idleInterval) clearInterval(Game.idleInterval);
+  Game.idleInterval = null;
 }
 
 // Escolhe a próxima tecla alvo (evita repetir a anterior).
@@ -84,6 +120,8 @@ function nextTarget() {
 
 function onKeyDown(e) {
   if (!Game.state || Game.state.finished) return;
+  // Esc encerra a partida e volta à seleção (navegação por teclado).
+  if (e.key === 'Escape') { e.preventDefault(); quitGame(); return; }
   // Evita perder o foco com Tab e barra de espaço rolando a página.
   if (e.key === 'Tab' || e.key === ' ') e.preventDefault();
 
@@ -111,6 +149,8 @@ function handleHit() {
   stageStep(chooseAction(s));
   renderHud();
   nextTarget();
+
+  if (s.mode === 'free') armIdle();
 }
 
 // Decide a ação da cena a cada acerto (prioridade: especial > ataque > pulo > caminhada).
@@ -124,15 +164,20 @@ function chooseAction(s) {
 function handleMiss() {
   const s = Game.state;
   s.misses += 1;
-  s.lives -= 1;
   s.combo = 0;
+  recordMiss(s, Game.target.char);
 
   flash('miss');
   stageHurt();
-  renderHud();
 
-  if (s.lives <= 0) {
-    endGame();
+  if (s.mode === 'free') {
+    // Modo livre: pode errar à vontade (sem perder vida).
+    renderHud();
+    armIdle();
+  } else {
+    s.lives -= 1;
+    renderHud();
+    if (s.lives <= 0) endGame();
   }
 }
 
@@ -150,7 +195,16 @@ function renderHud() {
   Game.el.hits.textContent = s.hits;
   Game.el.wpm.textContent = Math.round(s.wpm);
   Game.el.pr.textContent = s.pr;
-  Game.el.lives.innerHTML = renderHearts(s.lives);
+
+  // Clássico mostra vidas (corações); livre mostra a contagem de inatividade.
+  if (s.mode === 'free') {
+    Game.el.livesWrap.classList.add('hidden');
+    Game.el.idleWrap.classList.remove('hidden');
+  } else {
+    Game.el.idleWrap.classList.add('hidden');
+    Game.el.livesWrap.classList.remove('hidden');
+    Game.el.lives.innerHTML = renderHearts(s.lives);
+  }
 }
 
 function renderHearts(lives) {
