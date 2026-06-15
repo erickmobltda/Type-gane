@@ -1,0 +1,272 @@
+/* styles.css — tema Zelda (verde/dourado), HUD, telas e animações. */
+
+:root {
+  --bg0: #0e1410;
+  --bg1: #16201a;
+  --panel: #1b271f;
+  --panel-edge: #2f4434;
+  --gold: #d4af37;
+  --gold-soft: #caa24a;
+  --green: #2f8f3e;
+  --green-bright: #4fd16a;
+  --text: #ece3cf;
+  --text-dim: #a9a08a;
+  --red: #e7402e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Spectral', Georgia, serif;
+  color: var(--text);
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #1f3327 0%, transparent 60%),
+    linear-gradient(180deg, var(--bg1) 0%, var(--bg0) 100%);
+  background-attachment: fixed;
+}
+
+/* ---------- Topbar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 2px solid var(--panel-edge);
+  background: linear-gradient(180deg, rgba(0,0,0,.25), transparent);
+}
+.topbar h1 {
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+  font-size: 1.7rem;
+  margin: 0;
+  color: var(--gold);
+  letter-spacing: 1px;
+  text-shadow: 0 2px 0 #000;
+}
+.topbar .subtitle { color: var(--text-dim); font-size: .95rem; margin-left: auto; }
+.crest svg { filter: drop-shadow(0 1px 2px #000); }
+
+main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
+
+/* ---------- Telas ---------- */
+.screen { display: none; animation: fade .25s ease; }
+.screen.active { display: block; }
+@keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+
+.screen-title {
+  font-family: 'Cinzel', serif;
+  color: var(--gold);
+  text-align: center;
+  font-size: 1.6rem;
+  margin: 8px 0 4px;
+}
+.screen-hint { text-align: center; color: var(--text-dim); margin: 0 0 24px; }
+
+/* ---------- Seleção de layout ---------- */
+.layout-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+.layout-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 2px solid var(--panel-edge);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: transform .15s, border-color .15s, box-shadow .15s;
+}
+.layout-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--gold);
+  box-shadow: 0 10px 24px rgba(0,0,0,.4), 0 0 0 1px var(--gold) inset;
+}
+.layout-card-img {
+  background: #0c120e;
+  border-radius: 10px;
+  padding: 14px;
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.layout-card-info h3 {
+  margin: 0;
+  font-family: 'Cinzel', serif;
+  color: var(--gold);
+  font-size: 1.25rem;
+}
+.layout-card-info p { margin: 4px 0; color: var(--text-dim); font-size: .9rem; }
+.layout-card-pr {
+  display: inline-block;
+  font-size: .85rem;
+  color: var(--green-bright);
+  font-weight: 600;
+}
+
+.kbd-svg { width: 100%; height: auto; max-height: 320px; }
+.kbd-compact { max-height: 130px; }
+
+/* ---------- HUD ---------- */
+.hud {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border: 2px solid var(--panel-edge);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+}
+.hud-item { display: flex; flex-direction: column; align-items: center; min-width: 70px; }
+.hud-label { font-size: .7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+.hud-value { font-family: 'Cinzel', serif; font-size: 1.6rem; font-weight: 800; color: var(--gold); }
+.hud-lives { display: flex; gap: 3px; }
+.heart svg { display: block; }
+.heart.full svg { filter: drop-shadow(0 0 4px rgba(231,64,46,.6)); }
+.hud-meta { margin-left: auto; flex-direction: row; align-items: center; gap: 10px; }
+.layout-badge {
+  font-family: 'Cinzel', serif;
+  color: var(--green-bright);
+  border: 1px solid var(--panel-edge);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: .9rem;
+}
+
+/* ---------- Área de jogo ---------- */
+.play-area {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 20px;
+  align-items: center;
+  background: var(--panel);
+  border: 2px solid var(--panel-edge);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 18px;
+  transition: box-shadow .12s, border-color .12s;
+}
+.play-left { display: flex; justify-content: center; }
+.hero-svg { width: 150px; height: auto; }
+.play-center { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+
+.prompt { text-align: center; }
+.prompt-label { display: block; text-transform: uppercase; letter-spacing: 2px; color: var(--text-dim); font-size: .8rem; }
+.prompt-key {
+  display: block;
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+  font-size: 5.5rem;
+  line-height: 1;
+  margin: 4px 0;
+  text-shadow: 0 4px 0 #000, 0 0 24px currentColor;
+}
+.prompt-sub { color: var(--text); font-size: 1rem; }
+.prompt-sub strong { font-weight: 700; }
+
+.hands-svg { width: 100%; max-width: 360px; height: auto; }
+.hand-label { fill: var(--text-dim); font-size: 11px; font-family: 'Spectral', serif; }
+
+.kbd-area {
+  background: #0c120e;
+  border: 2px solid var(--panel-edge);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  justify-content: center;
+}
+
+/* feedback de acerto/erro (borda da área de jogo) */
+.flash-hit { box-shadow: 0 0 0 3px var(--green-bright), 0 0 30px rgba(79,209,106,.4); border-color: var(--green-bright); }
+.flash-miss { box-shadow: 0 0 0 3px var(--red), 0 0 30px rgba(231,64,46,.4); border-color: var(--red); }
+
+/* ---------- Herói: animações ---------- */
+.hero { display: inline-block; transform-origin: center bottom; }
+.hero-sword { transform-origin: 88px 90px; }
+.hero.is-attack .hero-sword { animation: swing .32s ease; }
+@keyframes swing {
+  0% { transform: rotate(0deg); }
+  40% { transform: rotate(-95deg); }
+  100% { transform: rotate(0deg); }
+}
+.hero.is-hurt { animation: hurt .32s ease; }
+@keyframes hurt {
+  0%,100% { transform: translateX(0); filter: none; }
+  20% { transform: translateX(-6px); filter: brightness(1.8) sepia(1) hue-rotate(-30deg); }
+  60% { transform: translateX(5px); filter: brightness(1.8) sepia(1) hue-rotate(-30deg); }
+}
+
+/* ---------- Botões ---------- */
+.btn {
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 10px 20px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  font-size: .95rem;
+  transition: transform .1s, filter .1s;
+}
+.btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+.btn-gold { background: var(--gold); color: #2a200a; border-color: var(--gold-soft); }
+.btn-ghost { background: transparent; color: var(--text); border-color: var(--panel-edge); }
+.btn-ghost:hover { border-color: var(--gold); }
+
+/* ---------- Game over ---------- */
+.over-card {
+  max-width: 520px;
+  margin: 40px auto;
+  background: var(--panel);
+  border: 2px solid var(--panel-edge);
+  border-radius: 16px;
+  padding: 28px;
+  text-align: center;
+}
+.newpr {
+  color: var(--gold);
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+  font-size: 1.2rem;
+  margin: 8px 0 16px;
+  animation: pulse 1s infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+.over-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 20px 0 24px;
+}
+.over-stats > div { display: flex; flex-direction: column; gap: 4px; }
+.over-num { font-family: 'Cinzel', serif; font-size: 2rem; font-weight: 800; color: var(--gold); }
+.over-cap { font-size: .75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+.over-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+.hidden { display: none !important; }
+
+.footer {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: .85rem;
+  padding: 20px;
+  border-top: 1px solid var(--panel-edge);
+}
+
+/* ---------- Responsivo ---------- */
+@media (max-width: 720px) {
+  .play-area { grid-template-columns: 1fr; }
+  .play-left { order: 2; }
+  .prompt-key { font-size: 4rem; }
+  .topbar .subtitle { display: none; }
+  .hud-meta { width: 100%; margin-left: 0; justify-content: space-between; }
+}
