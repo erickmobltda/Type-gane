@@ -1,18 +1,19 @@
-// stage.js — cena 2D side-scroller (estilo Mario World).
-// O herói anda enquanto o jogador digita; a cada acerto dá um passo e, em marcos,
-// ataca um inimigo, pula ou solta um especial. Sem digitar por um instante → idle.
-// Reaproveita renderHero() (character.js) para o sprite do herói.
+// stage.js — cena 2D de corrida infinita (estilo Chrome Dino / Canabalt).
+// O corredor avança enquanto o jogador digita; em marcos PULA um obstáculo
+// ou solta um DASH (especial). Sem digitar por um instante → idle.
+// Erro = tropeço. Reaproveita renderRunner() (character.js) para o sprite.
 
 const Stage = {
-  root: null, hero: null, enemy: null, scene: null, fx: null,
+  root: null, runner: null, obstacle: null, scene: null, fx: null,
   scroll: 0,
   idleTimer: null,
   classTimers: {}, // timers para remover classes "one-shot"
 };
 
 const STAGE_STEP = 26;       // px de rolagem por acerto
+const STAGE_DASH_STEP = 70;  // rolagem extra no dash
 const STAGE_IDLE_MS = 460;   // tempo parado até voltar ao idle
-const ACTION_MS = { attack: 360, jump: 560, special: 760, hurt: 360 };
+const ACTION_MS = { jump: 620, dash: 500, stumble: 420 };
 
 // Monta a cena dentro do contêiner e zera o estado.
 function stageInit(containerEl) {
@@ -24,15 +25,15 @@ function stageInit(containerEl) {
       <div class="layer ground"></div>
     </div>
     <div class="stage-actors">
-      <div id="stage-enemy" class="enemy">${renderEnemy()}</div>
-      <div id="stage-hero" class="hero hero-stage">${renderHero()}</div>
+      <div id="stage-obstacle" class="obstacle">${renderObstacle()}</div>
+      <div id="stage-runner" class="runner">${renderRunner()}</div>
       <div id="stage-fx" class="stage-fx"></div>
     </div>`;
 
   Stage.root = containerEl;
   Stage.scene = containerEl.querySelector('.stage-scene');
-  Stage.hero = containerEl.querySelector('#stage-hero');
-  Stage.enemy = containerEl.querySelector('#stage-enemy');
+  Stage.runner = containerEl.querySelector('#stage-runner');
+  Stage.obstacle = containerEl.querySelector('#stage-obstacle');
   Stage.fx = containerEl.querySelector('#stage-fx');
 
   Stage.scroll = 0;
@@ -40,46 +41,43 @@ function stageInit(containerEl) {
   clearTimeout(Stage.idleTimer);
   Object.values(Stage.classTimers).forEach(clearTimeout);
   Stage.classTimers = {};
-  Stage.hero.className = 'hero hero-stage';
+  Stage.runner.className = 'runner';
 }
 
-// Avança um passo + dispara a animação da ação ('walk' | 'attack' | 'jump' | 'special').
+// Avança um passo + dispara a ação ('run' | 'jump' | 'dash').
 function stageStep(action) {
-  if (!Stage.hero) return;
+  if (!Stage.runner) return;
 
-  // rola o cenário (com transição CSS → parece contínuo ao digitar rápido)
-  Stage.scroll += STAGE_STEP;
+  Stage.scroll += STAGE_STEP + (action === 'dash' ? STAGE_DASH_STEP : 0);
   applyScroll();
 
-  // mantém o ciclo de caminhada enquanto houver digitação
-  Stage.hero.classList.add('is-walking');
+  // mantém o ciclo de corrida enquanto houver digitação
+  Stage.runner.classList.add('is-running');
   clearTimeout(Stage.idleTimer);
   Stage.idleTimer = setTimeout(stageIdle, STAGE_IDLE_MS);
 
-  if (action === 'attack') {
-    triggerEnemyHit(false);
-    oneShot('is-attack', ACTION_MS.attack);
-  } else if (action === 'jump') {
+  if (action === 'jump') {
+    triggerObstacle();
     oneShot('is-jump', ACTION_MS.jump);
-  } else if (action === 'special') {
-    triggerEnemyHit(true);
-    spawnProjectile();
-    oneShot('is-special', ACTION_MS.special);
+  } else if (action === 'dash') {
+    spawnSpeedLines();
+    oneShot('is-dash', ACTION_MS.dash);
   }
-  // 'walk' não precisa de classe extra: o passo + is-walking já bastam.
+  // 'run' não precisa de classe extra.
 }
 
-// Volta o herói para a pose parada.
+// Volta o corredor para a pose parada.
 function stageIdle() {
-  if (Stage.hero) Stage.hero.classList.remove('is-walking');
+  if (Stage.runner) Stage.runner.classList.remove('is-running');
 }
 
-// Dano: knockback + flash, e some o combo de caminhada.
+// Erro: tropeço + poeira; interrompe a corrida.
 function stageHurt() {
-  if (!Stage.hero) return;
-  Stage.hero.classList.remove('is-walking');
+  if (!Stage.runner) return;
+  Stage.runner.classList.remove('is-running');
   clearTimeout(Stage.idleTimer);
-  oneShot('is-hurt', ACTION_MS.hurt);
+  spawnDust();
+  oneShot('is-stumble', ACTION_MS.stumble);
 }
 
 // ---- internos ----
@@ -88,9 +86,9 @@ function applyScroll() {
   if (Stage.scene) Stage.scene.style.setProperty('--scroll', Stage.scroll);
 }
 
-// Adiciona uma classe transitória ao herói e a remove após `dur` (permite repetir).
+// Adiciona uma classe transitória ao corredor e a remove após `dur` (permite repetir).
 function oneShot(cls, dur) {
-  const el = Stage.hero;
+  const el = Stage.runner;
   el.classList.remove(cls);
   void el.offsetWidth; // reflow para reiniciar a animação
   el.classList.add(cls);
@@ -98,40 +96,49 @@ function oneShot(cls, dur) {
   Stage.classTimers[cls] = setTimeout(() => el.classList.remove(cls), dur + 40);
 }
 
-// Mostra o inimigo à frente e o "derrota" (poof). special=true dá um destaque maior.
-function triggerEnemyHit(special) {
-  const e = Stage.enemy;
-  if (!e) return;
-  e.classList.remove('show', 'struck', 'special');
-  void e.offsetWidth;
-  e.classList.add('show');
-  if (special) e.classList.add('special');
-  // pequeno atraso para o golpe "alcançar" o inimigo
-  clearTimeout(Stage.classTimers.enemy);
-  Stage.classTimers.enemy = setTimeout(() => {
-    e.classList.add('struck');
-    setTimeout(() => e.classList.remove('show', 'struck', 'special'), 420);
-  }, 140);
+// Faz um obstáculo cruzar a pista (sincronizado com o pulo).
+function triggerObstacle() {
+  const o = Stage.obstacle;
+  if (!o) return;
+  o.classList.remove('go');
+  void o.offsetWidth;
+  o.classList.add('go');
+  clearTimeout(Stage.classTimers.obstacle);
+  Stage.classTimers.obstacle = setTimeout(() => o.classList.remove('go'), ACTION_MS.jump + 40);
 }
 
-// Projétil luminoso do especial.
-function spawnProjectile() {
+// Linhas de velocidade do dash.
+function spawnSpeedLines() {
   if (!Stage.fx) return;
-  const p = document.createElement('div');
-  p.className = 'projectile';
-  Stage.fx.appendChild(p);
-  setTimeout(() => p.remove(), 700);
+  for (let i = 0; i < 4; i++) {
+    const l = document.createElement('div');
+    l.className = 'speed-line';
+    l.style.top = (24 + Math.random() * 90) + 'px';
+    l.style.left = (45 + Math.random() * 30) + '%';
+    l.style.width = (24 + Math.random() * 26) + 'px';
+    l.style.animationDelay = (i * 40) + 'ms';
+    Stage.fx.appendChild(l);
+    setTimeout(() => l.remove(), 600);
+  }
 }
 
-// Inimigo original simples (slime) em SVG.
-function renderEnemy() {
+// Nuvem de poeira no tropeço.
+function spawnDust() {
+  if (!Stage.fx) return;
+  const d = document.createElement('div');
+  d.className = 'dust';
+  Stage.fx.appendChild(d);
+  setTimeout(() => d.remove(), 460);
+}
+
+// Obstáculo original (barreira da pista) em SVG.
+function renderObstacle() {
   return `
-  <svg viewBox="0 0 60 56" class="enemy-svg" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="30" cy="50" rx="20" ry="5" fill="#000" opacity="0.25"/>
-    <path d="M8 44 Q6 18 30 16 Q54 18 52 44 Z" fill="#9b59b6" stroke="#6f3d86" stroke-width="2"/>
-    <path d="M8 44 Q6 30 30 30 Q54 30 52 44 Z" fill="#b06fce" opacity="0.6"/>
-    <circle cx="22" cy="34" r="4" fill="#fff"/><circle cx="22" cy="35" r="2" fill="#241a2e"/>
-    <circle cx="38" cy="34" r="4" fill="#fff"/><circle cx="38" cy="35" r="2" fill="#241a2e"/>
-    <path d="M24 42 Q30 46 36 42" stroke="#3a2347" stroke-width="2" fill="none"/>
+  <svg viewBox="0 0 40 44" class="obstacle-svg" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="20" cy="40" rx="16" ry="4" fill="#000" opacity="0.25"/>
+    <rect x="6" y="14" width="28" height="24" rx="4" fill="#d8472e" stroke="#8c2c1b" stroke-width="2"/>
+    <rect x="6" y="20" width="28" height="6" fill="#f4f1e8"/>
+    <rect x="6" y="30" width="28" height="6" fill="#f4f1e8"/>
+    <rect x="17" y="6" width="6" height="12" rx="2" fill="#6b6f78"/>
   </svg>`;
 }

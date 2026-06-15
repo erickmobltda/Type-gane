@@ -155,12 +155,11 @@ function handleHit() {
   if (s.mode === 'free') armIdle();
 }
 
-// Decide a ação da cena a cada acerto (prioridade: especial > ataque > pulo > caminhada).
+// Decide a ação da cena a cada acerto (prioridade: dash > pulo > corrida).
 function chooseAction(s) {
-  if (s.combo > 0 && s.combo % 20 === 0) return 'special';
-  if (s.steps % 7 === 0) return 'attack';
-  if (s.steps % 13 === 0) return 'jump';
-  return 'walk';
+  if (s.combo > 0 && s.combo % 20 === 0) return 'dash';
+  if (s.steps % 6 === 0) return 'jump';
+  return 'run';
 }
 
 function handleMiss() {
