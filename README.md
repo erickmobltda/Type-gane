@@ -1,8 +1,9 @@
-# Type Runner
+# DEAD KEYS
 
 Jogo de navegador para treinar digitação **rápida e com o dedo correto** em teclados
-ergonômicos *split*. Você é um corredor **fugindo de uma horda de zumbis**: digitar rápido
-e certo abre distância; ir devagar ou errar muito faz a horda **colar** em você.
+ergonômicos *split*. Você é um **sobrevivente fugindo de uma horda de zumbis** numa noite
+de apocalipse: digitar rápido e certo abre distância; ir devagar ou errar muito faz a
+horda **colar** em você — e te alcançar.
 
 Roda **100% no navegador**, sem build e sem dependências — basta abrir `index.html`.
 

@@ -20,6 +20,8 @@ const Game = {
   chaseTimer: null,
   chaseLast: 0,
   distance: DIST_START,
+  grabbing: false, // congela a perseguição durante o agarrão
+  grabTimer: null,
   el: {}, // cache de elementos
 };
 
@@ -53,6 +55,7 @@ function startGame(layoutId, mode) {
   Game.state = createState(layoutId, mode);
   Game.target = null;
   Game.distance = DIST_START;
+  Game.grabbing = false;
 
   Game.el.layoutName.textContent = Game.layout.name;
   Game.el.modeName.textContent = MODE_LABELS[Game.state.mode];
@@ -85,6 +88,9 @@ function stopGame() {
   if (Game.wpmTimer) clearInterval(Game.wpmTimer);
   Game.wpmTimer = null;
   stopChase();
+  if (Game.grabTimer) clearTimeout(Game.grabTimer);
+  Game.grabTimer = null;
+  Game.grabbing = false;
 }
 
 // Sai do jogo e volta à seleção (tecla Esc).
@@ -112,6 +118,7 @@ function chaseTick() {
   const now = performance.now();
   const dt = (now - Game.chaseLast) / 1000;
   Game.chaseLast = now;
+  if (Game.grabbing) return; // congelado durante o agarrão
 
   Game.distance = Math.max(0, Game.distance - DIST_DRAIN * dt);
   renderChase();
@@ -128,26 +135,32 @@ function renderChase() {
   if (typeof stageSetChase === 'function') stageSetChase(d / 100);
 }
 
-// A horda alcançou o jogador.
+// A horda alcançou o jogador — segura o contato por um instante (susto) antes de seguir.
 function handleCaught() {
   const s = Game.state;
-  if (!s || s.finished) return;
+  if (!s || s.finished || Game.grabbing) return;
 
-  if (s.mode === 'free') {
-    endGame();
-    return;
-  }
-  // Clássico: perde uma vida; se ainda restar, a horda recua.
-  s.lives -= 1;
+  Game.grabbing = true;
   flash('miss');
   if (typeof stageGrab === 'function') stageGrab();
-  renderHud();
-  if (s.lives <= 0) {
-    endGame();
+
+  if (s.mode === 'free') {
+    Game.grabTimer = setTimeout(() => { if (!s.finished) endGame(); }, 540);
     return;
   }
-  Game.distance = CATCH_RECOVER;
-  renderChase();
+  // Clássico: perde uma das chances.
+  s.lives -= 1;
+  renderHud();
+  if (s.lives <= 0) {
+    Game.grabTimer = setTimeout(() => { if (!s.finished) endGame(); }, 620);
+    return;
+  }
+  // Sobreviveu: a horda recua e a fuga continua.
+  Game.grabTimer = setTimeout(() => {
+    Game.distance = CATCH_RECOVER;
+    Game.grabbing = false;
+    renderChase();
+  }, 470);
 }
 
 // Escolhe a próxima tecla alvo (evita repetir a anterior).
@@ -173,6 +186,7 @@ function onKeyDown(e) {
   if (!Game.state || Game.state.finished) return;
   // Esc encerra a partida e volta à seleção (navegação por teclado).
   if (e.key === 'Escape') { e.preventDefault(); quitGame(); return; }
+  if (Game.grabbing) return; // ignora digitação durante o agarrão
   // Evita perder o foco com Tab e barra de espaço rolando a página.
   if (e.key === 'Tab' || e.key === ' ') e.preventDefault();
 
@@ -201,7 +215,6 @@ function handleHit() {
   // Abre distância da horda.
   Game.distance = Math.min(DIST_MAX, Game.distance + DIST_GAIN);
 
-  flash('hit');
   stageStep(chooseAction(s));
   renderHud();
   renderChase();
@@ -221,10 +234,9 @@ function handleMiss() {
   s.combo = 0;
   recordMiss(s, Game.target.char);
 
-  // Erro tropeça e a horda avança um tranco (não tira vida direto).
+  // Erro: o sobrevivente tropeça e a horda avança um tranco (não tira vida direto).
   Game.distance = Math.max(0, Game.distance - DIST_MISS);
 
-  flash('miss');
   stageHurt();
   renderHud();
   renderChase();
