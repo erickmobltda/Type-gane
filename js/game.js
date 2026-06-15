@@ -138,7 +138,9 @@ function onKeyDown(e) {
 
 function handleHit() {
   const s = Game.state;
-  if (!s.startTime) s.startTime = performance.now();
+  const now = performance.now();
+  if (!s.startTime) s.startTime = now;
+  s.lastActive = now;
   s.hits += 1;
   s.steps += 1;
   s.combo += 1;

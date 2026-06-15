@@ -84,6 +84,7 @@ function updateSelectHighlight() {
 function startSelected(idx) {
   const layoutId = LAYOUT_IDS[idx];
   lastGame = { layoutId, mode: SelectUI.mode };
+  saveLast(layoutId, SelectUI.mode); // lembra entre sessões
   Screens.show('game');
   startGame(layoutId, SelectUI.mode);
 }
@@ -121,6 +122,15 @@ function showGameOver(state, isNewPr) {
   document.getElementById('over-wpm').textContent = Math.round(state.wpm);
   document.getElementById('over-pr').textContent = state.pr;
   document.getElementById('over-newpr').classList.toggle('hidden', !isNewPr);
+
+  // Evolução do WPM: registra esta partida e desenha a curva do teclado.
+  const hist = addHistory(state);
+  document.getElementById('over-chart').innerHTML = renderWpmChart(hist);
+  const wpms = hist.map((h) => h.wpm);
+  const best = Math.max(...wpms);
+  const avg = Math.round(wpms.reduce((a, b) => a + b, 0) / wpms.length);
+  document.getElementById('over-chart-cap').textContent =
+    `· melhor ${best} · média ${avg} · ${hist.length} jogo(s)`;
 
   document.getElementById('over-missed').innerHTML =
     `<h3 class="over-sub">Teclas que você mais errou</h3>
@@ -217,6 +227,15 @@ function globalKeys(e) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Restaura o último teclado/modo usados (localStorage).
+  const last = loadLast();
+  if (last) {
+    SelectUI.mode = last.mode === 'free' ? 'free' : 'classic';
+    const idx = LAYOUT_IDS.indexOf(last.layoutId);
+    if (idx >= 0) SelectUI.focus = idx;
+    lastGame = { layoutId: last.layoutId, mode: SelectUI.mode };
+  }
+
   initSelectScreen();
   wireButtons();
   document.addEventListener('keydown', globalKeys);

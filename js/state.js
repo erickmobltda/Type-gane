@@ -14,6 +14,7 @@ function createState(layoutId, mode) {
     lives: MAX_LIVES,
     missByChar: {}, // contagem de erros por tecla alvo
     startTime: null, // marca o 1º acerto
+    lastActive: null, // momento do último acerto (WPM não conta pausas)
     wpm: 0,
     pr: loadPR(layoutId),
     finished: false,
@@ -59,12 +60,50 @@ function maybeUpdatePR(state) {
   return false;
 }
 
-// Recalcula WPM = (acertos / 5) / minutos decorridos.
+// Recalcula WPM = (acertos / 5) / minutos digitando.
+// Usa o tempo até o último acerto, então pausas (e o encerramento por
+// inatividade no modo livre) não derrubam o resultado.
 function recomputeWpm(state) {
-  if (!state.startTime || state.hits === 0) {
+  if (state.startTime == null || state.hits === 0) {
     state.wpm = 0;
     return;
   }
-  const minutes = (performance.now() - state.startTime) / 60000;
+  const end = state.lastActive || performance.now();
+  const minutes = (end - state.startTime) / 60000;
   state.wpm = minutes > 0 ? (state.hits / 5) / minutes : 0;
+}
+
+// ---------- Preferência: último teclado/modo usados ----------
+const LAST_KEY = 'splitTyping.last';
+
+function saveLast(layoutId, mode) {
+  localStorage.setItem(LAST_KEY, JSON.stringify({ layoutId, mode }));
+}
+
+function loadLast() {
+  try {
+    const v = JSON.parse(localStorage.getItem(LAST_KEY));
+    if (v && v.layoutId) return v;
+  } catch (e) { /* ignora */ }
+  return null;
+}
+
+// ---------- Histórico de WPM por teclado (evolução entre sessões) ----------
+const HISTORY_PREFIX = 'splitTyping.history.';
+const HISTORY_MAX = 40;
+
+function loadHistory(layoutId) {
+  try {
+    const v = JSON.parse(localStorage.getItem(HISTORY_PREFIX + layoutId));
+    return Array.isArray(v) ? v : [];
+  } catch (e) { return []; }
+}
+
+// Registra o resultado da partida e devolve a lista atualizada (mais antigo → recente).
+function addHistory(state) {
+  const list = loadHistory(state.layoutId);
+  list.push({ wpm: Math.round(state.wpm), acc: accuracy(state), mode: state.mode, t: Date.now() });
+  while (list.length > HISTORY_MAX) list.shift();
+  localStorage.setItem(HISTORY_PREFIX + state.layoutId, JSON.stringify(list));
+  return list;
 }
