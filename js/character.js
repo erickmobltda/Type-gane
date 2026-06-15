@@ -8,11 +8,17 @@ function renderHero() {
     <!-- sombra -->
     <ellipse cx="60" cy="142" rx="30" ry="6" fill="#000" opacity="0.3"/>
 
-    <!-- pernas -->
-    <rect x="48" y="108" width="10" height="26" rx="4" fill="#7a5a32"/>
-    <rect x="62" y="108" width="10" height="26" rx="4" fill="#7a5a32"/>
-    <rect x="46" y="130" width="14" height="8" rx="3" fill="#4a3416"/>
-    <rect x="60" y="130" width="14" height="8" rx="3" fill="#4a3416"/>
+    <!-- pernas (agrupadas para o ciclo de caminhada) -->
+    <g class="hero-legs">
+      <g class="leg leg-l">
+        <rect x="48" y="108" width="10" height="26" rx="4" fill="#7a5a32"/>
+        <rect x="46" y="130" width="14" height="8" rx="3" fill="#4a3416"/>
+      </g>
+      <g class="leg leg-r">
+        <rect x="62" y="108" width="10" height="26" rx="4" fill="#7a5a32"/>
+        <rect x="60" y="130" width="14" height="8" rx="3" fill="#4a3416"/>
+      </g>
+    </g>
 
     <!-- túnica verde -->
     <path d="M40 70 L80 70 L84 116 L36 116 Z" fill="#2f8f3e" stroke="#1f6e2c" stroke-width="2"/>
@@ -51,13 +57,4 @@ function renderHero() {
       </g>
     </g>
   </svg>`;
-}
-
-// Aplica um estado de animação curto ao contêiner do herói.
-function heroAnimate(containerEl, type) {
-  containerEl.classList.remove('is-attack', 'is-hurt');
-  // força reflow para reiniciar a animação
-  void containerEl.offsetWidth;
-  if (type === 'attack') containerEl.classList.add('is-attack');
-  if (type === 'hurt') containerEl.classList.add('is-hurt');
 }

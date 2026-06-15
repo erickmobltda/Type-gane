@@ -8,6 +8,8 @@ function createState(layoutId) {
     layoutId,
     hits: 0,        // acertos
     misses: 0,      // erros cometidos
+    steps: 0,       // passos dados na cena side-scroller (1 por acerto)
+    combo: 0,       // sequência de acertos sem erro (alimenta o "especial")
     lives: MAX_LIVES,
     startTime: null, // marca o 1º acerto
     wpm: 0,

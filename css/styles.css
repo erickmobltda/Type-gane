@@ -145,10 +145,9 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
 
 /* ---------- Área de jogo ---------- */
 .play-area {
-  display: grid;
-  grid-template-columns: 200px 1fr;
-  gap: 20px;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
   background: var(--panel);
   border: 2px solid var(--panel-edge);
   border-radius: 14px;
@@ -156,8 +155,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
   margin-bottom: 18px;
   transition: box-shadow .12s, border-color .12s;
 }
-.play-left { display: flex; justify-content: center; }
-.hero-svg { width: 150px; height: auto; }
+.hero-svg { width: 100%; height: 100%; }
 .play-center { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 
 .prompt { text-align: center; }
@@ -190,20 +188,140 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
 .flash-hit { box-shadow: 0 0 0 3px var(--green-bright), 0 0 30px rgba(79,209,106,.4); border-color: var(--green-bright); }
 .flash-miss { box-shadow: 0 0 0 3px var(--red), 0 0 30px rgba(231,64,46,.4); border-color: var(--red); }
 
+/* ---------- Palco side-scroller ---------- */
+.stage {
+  position: relative;
+  width: 100%;
+  height: 168px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid var(--panel-edge);
+  background: #0c120e;
+}
+.stage-scene { position: absolute; inset: 0; }
+.stage-scene .layer { position: absolute; inset: 0; }
+
+/* fundo em parallax — cada camada desloca conforme --scroll (px de rolagem) */
+.layer.sky {
+  background: linear-gradient(180deg, #173a52 0%, #2a5d6e 55%, #3f7d63 100%);
+}
+.layer.clouds {
+  background:
+    radial-gradient(40px 18px at 60px 38px, rgba(255,255,255,.18), transparent 70%),
+    radial-gradient(56px 22px at 220px 60px, rgba(255,255,255,.14), transparent 70%),
+    radial-gradient(44px 18px at 360px 30px, rgba(255,255,255,.16), transparent 70%);
+  background-repeat: repeat-x;
+  background-size: 420px 100%;
+  background-position-x: calc(var(--scroll, 0) * -0.12px);
+  transition: background-position-x .28s linear;
+}
+.layer.hills {
+  background:
+    radial-gradient(80px 60px at 70px 175px, #2f6e44 0 70%, transparent 71%),
+    radial-gradient(110px 80px at 230px 185px, #28603b 0 70%, transparent 71%),
+    radial-gradient(90px 64px at 360px 178px, #2f6e44 0 70%, transparent 71%);
+  background-repeat: repeat-x;
+  background-size: 420px 100%;
+  background-position-x: calc(var(--scroll, 0) * -0.4px);
+  transition: background-position-x .28s linear;
+}
+.layer.ground {
+  top: auto; height: 42px; bottom: 0;
+  background:
+    repeating-linear-gradient(90deg, #5a3d1c 0 38px, #4a3216 38px 40px),
+    linear-gradient(180deg, #6b4a24, #3c2a14);
+  background-size: 40px 100%, 100% 100%;
+  background-position-x: calc(var(--scroll, 0) * -1px), 0;
+  transition: background-position-x .28s linear;
+  border-top: 3px solid #7a5a32;
+}
+
+/* atores */
+.stage-actors { position: absolute; inset: 0; }
+.hero-stage {
+  position: absolute;
+  left: 22%;
+  bottom: 30px;
+  width: 86px;
+  height: 108px;
+  transform-origin: center bottom;
+}
+.enemy {
+  position: absolute;
+  left: 44%;
+  bottom: 30px;
+  width: 54px;
+  height: 50px;
+  opacity: 0;
+  transform: translateX(60px) scale(.6);
+}
+.enemy.show { opacity: 1; transform: translateX(0) scale(1); transition: transform .18s ease, opacity .18s ease; }
+.enemy.special.show { filter: drop-shadow(0 0 8px #d4af37); }
+.enemy.struck { animation: enemy-poof .4s ease forwards; }
+.enemy-svg { width: 100%; height: 100%; }
+@keyframes enemy-poof {
+  0% { transform: translateX(0) scale(1) rotate(0); opacity: 1; }
+  100% { transform: translateX(34px) scale(.2) rotate(60deg); opacity: 0; }
+}
+
+.stage-fx { position: absolute; inset: 0; pointer-events: none; }
+.projectile {
+  position: absolute; left: 30%; bottom: 70px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 30%, #d4af37 50%, transparent 75%);
+  animation: projectile .65s ease-out forwards;
+}
+@keyframes projectile {
+  0% { transform: translateX(0) scale(.6); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateX(150px) scale(1.1); opacity: 0; }
+}
+
 /* ---------- Herói: animações ---------- */
-.hero { display: inline-block; transform-origin: center bottom; }
 .hero-sword { transform-origin: 88px 90px; }
-.hero.is-attack .hero-sword { animation: swing .32s ease; }
+.leg { transform-box: fill-box; transform-origin: 50% 6%; }
+
+/* caminhada: pernas alternando + leve bob do corpo */
+.hero-stage.is-walking .leg-l { animation: walk-a .42s linear infinite; }
+.hero-stage.is-walking .leg-r { animation: walk-b .42s linear infinite; }
+.hero-stage.is-walking { animation: body-bob .42s ease-in-out infinite; }
+@keyframes walk-a { 0%,100% { transform: rotate(20deg); } 50% { transform: rotate(-20deg); } }
+@keyframes walk-b { 0%,100% { transform: rotate(-20deg); } 50% { transform: rotate(20deg); } }
+@keyframes body-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+/* idle: respiração sutil quando parado (sem is-walking) */
+.hero-stage { animation: idle-bob 2.4s ease-in-out infinite; }
+@keyframes idle-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+
+/* ataque: golpe de espada (a caminhada continua nas pernas) */
+.hero-stage.is-attack .hero-sword { animation: swing .34s ease; }
 @keyframes swing {
   0% { transform: rotate(0deg); }
   40% { transform: rotate(-95deg); }
   100% { transform: rotate(0deg); }
 }
-.hero.is-hurt { animation: hurt .32s ease; }
+
+/* pulo: arco vertical */
+.hero-stage.is-jump { animation: hero-jump .56s ease; }
+@keyframes hero-jump {
+  0%,100% { transform: translateY(0); }
+  45% { transform: translateY(-46px); }
+}
+
+/* especial: giro com brilho dourado */
+.hero-stage.is-special { animation: hero-special .76s ease; }
+@keyframes hero-special {
+  0% { transform: translateY(0) rotate(0); filter: none; }
+  40% { transform: translateY(-22px) rotate(180deg); filter: drop-shadow(0 0 10px #d4af37) brightness(1.3); }
+  100% { transform: translateY(0) rotate(360deg); filter: none; }
+}
+
+/* dano: knockback + flash vermelho */
+.hero-stage.is-hurt { animation: hurt .36s ease; }
 @keyframes hurt {
   0%,100% { transform: translateX(0); filter: none; }
-  20% { transform: translateX(-6px); filter: brightness(1.8) sepia(1) hue-rotate(-30deg); }
-  60% { transform: translateX(5px); filter: brightness(1.8) sepia(1) hue-rotate(-30deg); }
+  25% { transform: translateX(-10px) rotate(-6deg); filter: brightness(1.8) sepia(1) hue-rotate(-30deg); }
+  60% { transform: translateX(6px) rotate(3deg); filter: brightness(1.8) sepia(1) hue-rotate(-30deg); }
 }
 
 /* ---------- Botões ---------- */
@@ -264,8 +382,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
 
 /* ---------- Responsivo ---------- */
 @media (max-width: 720px) {
-  .play-area { grid-template-columns: 1fr; }
-  .play-left { order: 2; }
+  .stage { height: 140px; }
   .prompt-key { font-size: 4rem; }
   .topbar .subtitle { display: none; }
   .hud-meta { width: 100%; margin-left: 0; justify-content: space-between; }

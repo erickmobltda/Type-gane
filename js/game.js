@@ -22,7 +22,7 @@ function gameCacheEls() {
     promptHand: document.getElementById('prompt-hand'),
     kbd: document.getElementById('kbd-area'),
     hands: document.getElementById('hands-area'),
-    hero: document.getElementById('hero-area'),
+    stage: document.getElementById('stage'),
     feedback: document.getElementById('feedback'),
   };
 }
@@ -36,8 +36,7 @@ function startGame(layoutId) {
   Game.target = null;
 
   Game.el.layoutName.textContent = Game.layout.name;
-  Game.el.hero.className = 'hero'; // reseta estado de animação
-  Game.el.hero.innerHTML = renderHero();
+  stageInit(Game.el.stage); // monta a cena side-scroller
 
   renderHud();
   nextTarget();
@@ -103,22 +102,33 @@ function handleHit() {
   const s = Game.state;
   if (!s.startTime) s.startTime = performance.now();
   s.hits += 1;
+  s.steps += 1;
+  s.combo += 1;
   recomputeWpm(s);
   maybeUpdatePR(s);
 
   flash('hit');
-  heroAnimate(Game.el.hero, 'attack');
+  stageStep(chooseAction(s));
   renderHud();
   nextTarget();
+}
+
+// Decide a ação da cena a cada acerto (prioridade: especial > ataque > pulo > caminhada).
+function chooseAction(s) {
+  if (s.combo > 0 && s.combo % 20 === 0) return 'special';
+  if (s.steps % 7 === 0) return 'attack';
+  if (s.steps % 13 === 0) return 'jump';
+  return 'walk';
 }
 
 function handleMiss() {
   const s = Game.state;
   s.misses += 1;
   s.lives -= 1;
+  s.combo = 0;
 
   flash('miss');
-  heroAnimate(Game.el.hero, 'hurt');
+  stageHurt();
   renderHud();
 
   if (s.lives <= 0) {
